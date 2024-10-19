@@ -1,16 +1,9 @@
-# cart_app
+# My own cart app for desktop 
 
-A new Flutter project.
+If anyone need it just fork but i dont if there will be any issue on you device
+This project is using sqlite offline database so you dont need to worry about internet connection
+You can also input you xlsx in here
 
-## Getting Started
+## App Download Link 
+Coming soon
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
