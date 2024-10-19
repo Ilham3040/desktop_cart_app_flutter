@@ -3,11 +3,13 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart'; // Import FFI
 import 'model/database_helper.dart'; // Import the database helper
 import 'package:intl/intl.dart'; // Import for formatting dates
 import 'inventory.dart'; // Import the inventory page
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'providers/projectinfo_provider.dart';
 
 void main() {
   sqfliteFfiInit(); // Initialize FFI for desktop platforms
   databaseFactory = databaseFactoryFfi;
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -103,22 +105,17 @@ class _MyHomePageState extends State<MyHomePage> {
   // Format the timestamp into a readable date-time string
   String _formatDate(String timestamp) {
     final DateTime dateTime = DateTime.parse(timestamp);
-    return DateFormat('yyyy-MM-dd HH:mm').format(dateTime);
+    return DateFormat('yyyy-MM-dd').format(dateTime);
   }
 
   // Navigate to Inventory Page and pass the project ID and name
-  void _navigateToInventory(int id, String name) async {
+  void _navigateToInventory() async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => InventoryPage(
-          projectId: id,
-          projectName: name,
-        ),
+        builder: (context) => InventoryPage(),
       ),
     );
-
-    // Fetch projects again after coming back from InventoryPage
     _initializeDatabaseAndLoadProjects();
   }
 
@@ -127,6 +124,8 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
+        backgroundColor: Colors.blue[900],
+        foregroundColor: Colors.white,
         title: Padding(
           padding: const EdgeInsets.only(left: 32.0),
           child: Text(
@@ -134,66 +133,72 @@ class _MyHomePageState extends State<MyHomePage> {
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
         ),
-        backgroundColor: Colors.white,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: ListView.builder(
-          itemCount: projects.isEmpty ? 1 : projects.length + 1,
-          itemBuilder: (context, index) {
-            if (index == projects.length) {
-              return GestureDetector(
-                onTap: _showAddProjectDialog,
-                child: Container(
-                  height: 75, // Set the height for the new project item
-                  color: Colors.greenAccent,
-                  child: const Center(
-                    child: Text(
-                      'Buat Data Baru',
-                      style: TextStyle(fontSize: 18, color: Colors.black),
-                    ),
-                  ),
-                ),
-              );
-            } else {
-              final project = projects[index];
-              final String formattedDate =
-                  _formatDate(project['created_at']); // Get formatted date
-
-              return GestureDetector(
-                onTap: () {
-                  _navigateToInventory(project['id'],
-                      project['name']); // Navigate to InventoryPage
-                },
-                child: Padding(
-                  padding: const EdgeInsets.only(
-                      bottom: 16.0), // Add gap between items
-                  child: Container(
-                    height: 75, // Set the height for each project item
-                    color: Colors.white,
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            project['name'], // Display project name
-                            style: const TextStyle(
-                                fontSize: 18, color: Colors.black),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            'Dibuat pada $formattedDate', // Display creation time
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ],
+      body: Consumer(
+        builder: (context, ref, child) {
+          return Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: ListView.builder(
+              itemCount: projects.isEmpty ? 1 : projects.length + 1,
+              itemBuilder: (context, index) {
+                if (index == projects.length) {
+                  return GestureDetector(
+                    onTap: _showAddProjectDialog,
+                    child: Container(
+                      height: 75,
+                      color: Colors.blue[900],
+                      child: const Center(
+                        child: Text(
+                          'Buat Data Baru',
+                          style: TextStyle(fontSize: 18, color: Colors.white),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              );
-            }
-          },
-        ),
+                  );
+                } else {
+                  final project = projects[index];
+                  final String formattedDate =
+                      _formatDate(project['created_at']);
+
+                  return GestureDetector(
+                    onTap: () {
+                      ref.read(projectInfoProvider.notifier).state =
+                          ProjectInfo(
+                              id: project['id'],
+                              name: project['name'],
+                              dateCreated: _formatDate(project['created_at']));
+                      _navigateToInventory();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Container(
+                        height: 75,
+                        color: Colors.white,
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                project['name'],
+                                style: const TextStyle(
+                                    fontSize: 18, color: Colors.black),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                'Dibuat pada $formattedDate',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+              },
+            ),
+          );
+        },
       ),
     );
   }

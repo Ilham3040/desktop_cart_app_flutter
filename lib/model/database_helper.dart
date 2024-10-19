@@ -1,5 +1,6 @@
 import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:intl/intl.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -32,59 +33,62 @@ class DatabaseHelper {
     return await openDatabase(
       path,
       version: 1,
-      onCreate: (db, version) async {
-        // Create the 'projects' table
-        await db.execute('''
-        CREATE TABLE projects (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      ''');
-
-        // Create the 'inventory' table with ON DELETE CASCADE
-        await db.execute('''
-        CREATE TABLE inventory (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          project_id INTEGER,
-          item_name TEXT NOT NULL,
-          price REAL NOT NULL,
-          stock_quantity INTEGER NOT NULL,
-          FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
-        )
-      ''');
-
-        // Create the 'checkout_history' table with ON DELETE CASCADE
-        await db.execute('''
-        CREATE TABLE checkout_history (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          user_id INTEGER,  -- Optional, if user management is implemented
-          project_id INTEGER,
-          checkout_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          total_amount REAL NOT NULL,
-          FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
-        )
-      ''');
-
-        // Create the 'checkout_items' table with ON DELETE CASCADE
-        await db.execute('''
-        CREATE TABLE checkout_items (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          checkout_history_id INTEGER,
-          item_id INTEGER,
-          quantity INTEGER NOT NULL,
-          price REAL NOT NULL,
-          FOREIGN KEY (checkout_history_id) REFERENCES checkout_history (id) ON DELETE CASCADE,
-          FOREIGN KEY (item_id) REFERENCES inventory (id) ON DELETE CASCADE
-        )
-      ''');
-      },
+      onCreate: _onCreate,
     );
   }
 
-  // Helper function to check if the app is running on desktop
+  Future<void> _onCreate(Database db, int version) async {
+    await db.execute('''CREATE TABLE IF NOT EXISTS projects (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        created_at DATE DEFAULT (date('now')) -- Stores only the date
+      )''');
+
+    await db.execute('''CREATE TABLE IF NOT EXISTS inventory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER,
+        item_name TEXT NOT NULL,
+        price REAL NOT NULL,
+        stock_quantity INTEGER NOT NULL,
+        added_at DATE DEFAULT (date('now')),
+        FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+      )''');
+
+    await db.execute('''CREATE TABLE IF NOT EXISTS checkout_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER, 
+        project_id INTEGER,
+        checkout_date DATE DEFAULT (date('now')), -- Stores only the date
+        total_amount REAL NOT NULL,
+        FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+      )''');
+
+    await db.execute('''CREATE TABLE IF NOT EXISTS checkout_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        checkout_history_id INTEGER,
+        item_id INTEGER,
+        quantity INTEGER NOT NULL,
+        price REAL NOT NULL,
+        FOREIGN KEY (checkout_history_id) REFERENCES checkout_history (id) ON DELETE CASCADE,
+        FOREIGN KEY (item_id) REFERENCES inventory (id) ON DELETE CASCADE
+      )''');
+
+    await db.execute('''CREATE TABLE IF NOT EXISTS stock_record (
+        id INTEGER PRIMARY KEY,
+        project_id INTEGER,
+        item_id INTEGER,  -- Changed product_id to item_id
+        stock_before INTEGER,
+        stock_added INTEGER,
+        stock_after INTEGER,
+        sell_price INTEGER,
+        cost_price INTEGER,
+        added_at DATE DEFAULT (date('now')), -- Stores only the date
+        FOREIGN KEY (item_id) REFERENCES inventory (id) ON DELETE CASCADE
+      )''');
+  }
+
   bool isDesktop() {
-    return identical(0, 0.0); // Hacky way to check desktop platforms
+    return identical(0, 0.0);
   }
 
   // ---------- CRUD for Projects Table ---------- //
@@ -150,6 +154,7 @@ class DatabaseHelper {
         'item_name': itemName,
         'price': price,
         'stock_quantity': stockQuantity,
+        'added_at': DateTime.now().toIso8601String()
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
@@ -167,6 +172,36 @@ class DatabaseHelper {
     );
   }
 
+  Future<Map<String, dynamic>?> getInventoryById(int itemId) async {
+    final db = await database;
+
+    // Querying the inventory table for the item with the specified ID
+    List<Map<String, dynamic>> results = await db.query(
+      'inventory',
+      where: 'id = ?',
+      whereArgs: [itemId],
+    );
+
+    // If there's at least one result, return the first one; otherwise, return null
+    if (results.isNotEmpty) {
+      return results.first;
+    } else {
+      return null; // Return null if no item found with the given ID
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getInventoryByName(String name) async {
+    final db = await database;
+
+    final List<Map<String, dynamic>> result = await db.query(
+      'inventory',
+      where: 'item_name = ?',
+      whereArgs: [name],
+    );
+
+    return result;
+  }
+
   Future<int> updateInventoryItem(
       int id, String itemName, double price, int stockQuantity) async {
     final db = await database;
@@ -181,6 +216,75 @@ class DatabaseHelper {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  Future<int> updateProductStock(int productId, int newStockQuantity) async {
+    final db = await database;
+
+    return await db.update(
+      'inventory',
+      {'stock_quantity': newStockQuantity},
+      where: 'id = ?',
+      whereArgs: [productId],
+    );
+  }
+
+  Future<int> insertStockRecord(int projectId, int itemId, int stockBefore,
+      int stockAdded, int stockAfter, int sellPrice, int costPrice) async {
+    final db = await database; // Access the database
+
+    // Prepare the stock record data
+    final stockRecord = {
+      'project_id': projectId,
+      'item_id': itemId, // ID of the product
+      'stock_before': stockBefore, // Stock quantity before the update
+      'stock_added': stockAdded, // Quantity added to stock
+      'stock_after': stockAfter, // Stock quantity after the update
+      'sell_price': sellPrice, // Selling price of the product
+      'cost_price': costPrice, // Cost price of the product
+      'added_at': DateTime.now().toIso8601String(), // Current timestamp
+    };
+
+    // Insert the stock record into the 'stock_record' table
+    return await db.insert('stock_record', stockRecord);
+  }
+
+  Future<List<Map<String, dynamic>>> getStockRecordsByProjectId(
+      int projectId) async {
+    final db = await database;
+
+    // Use a JOIN query to combine stock_record and inventory, with a limit of 60 records
+    final List<Map<String, dynamic>> result = await db.rawQuery('''
+    SELECT sr.*, i.item_name 
+    FROM stock_record sr
+    JOIN inventory i ON sr.item_id = i.id
+    WHERE sr.project_id = ?
+    ORDER BY sr.added_at DESC
+    LIMIT 60
+  ''', [projectId]);
+
+    return result;
+  }
+
+  Future<List<Map<String, dynamic>>> getStockRecordsByProjectIdInRange(
+      int projectId, DateTime date1, DateTime date2) async {
+    final db = await database;
+
+    // Format the DateTime to 'YYYY-MM-DD'
+    final String formattedDate1 = DateFormat('yyyy-MM-dd').format(date1);
+    final String formattedDate2 = DateFormat('yyyy-MM-dd').format(date2);
+
+    // Use a JOIN query to combine stock_record and inventory with a date range filter
+    final List<Map<String, dynamic>> result = await db.rawQuery('''
+    SELECT sr.*, i.item_name 
+    FROM stock_record sr
+    JOIN inventory i ON sr.item_id = i.id
+    WHERE sr.project_id = ? 
+    AND sr.added_at BETWEEN ? AND ?
+    ORDER BY sr.added_at DESC
+  ''', [projectId, formattedDate1, formattedDate2]);
+
+    return result;
   }
 
   Future<int> deleteInventoryItem(int id) async {
@@ -226,6 +330,29 @@ class DatabaseHelper {
       ], // Ensure date is selected
       where: 'project_id = ?',
       whereArgs: [projectId],
+      orderBy: 'checkout_date DESC',
+      limit: 60, // Limit to the first 60 results
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getCheckoutHistoryByProjectAndDateRange(
+      int projectId, DateTime date1, DateTime date2) async {
+    final db = await database;
+
+    // Use DateFormat to format the dates as 'yyyy-MM-dd'
+    final String formattedDate1 = DateFormat('yyyy-MM-dd').format(date1);
+    final String formattedDate2 = DateFormat('yyyy-MM-dd').format(date2);
+
+    return await db.query(
+      'checkout_history',
+      columns: [
+        'id',
+        'project_id',
+        'total_amount',
+        'checkout_date'
+      ], // Ensure the date is selected
+      where: 'project_id = ? AND checkout_date BETWEEN ? AND ?',
+      whereArgs: [projectId, formattedDate1, formattedDate2],
       orderBy: 'checkout_date DESC',
     );
   }
