@@ -1,66 +1,68 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'providers/inventory_provider.dart';
+import 'providers/projectinfo_provider.dart';
 import 'model/database_helper.dart';
-import 'package:intl/intl.dart'; // Import intl package for date formatting
 
-class CartPage extends StatefulWidget {
-  final String projectName;
-  final int projectId;
-
-  const CartPage({
-    Key? key,
-    required this.projectName,
-    required this.projectId,
-  }) : super(key: key);
+class CartPage extends ConsumerStatefulWidget {
+  const CartPage({super.key});
 
   @override
   _CartPageState createState() => _CartPageState();
 }
 
-class _CartPageState extends State<CartPage> {
-  List<Map<String, dynamic>> inventoryItems = [];
+class _CartPageState extends ConsumerState<CartPage> {
   List<Map<String, dynamic>> cartItems = [];
+  List<Map<String, dynamic>> filteredItems = [];
   double totalAmount = 0.0;
   final dbHelper = DatabaseHelper();
-  TextEditingController _searchController = TextEditingController();
+  TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadInventoryItems();
+    Future.microtask(
+        () => ref.read(inventoryProvider.notifier).fetchInventory());
   }
 
-  void _search(String query) async {
-    final results = await DatabaseHelper().searchInventoryItems(query);
-    setState(() {
-      inventoryItems = results; // Update the displayed products
-    });
-  }
+  void _searchItems(query) {
+    final inventoryState = ref.watch(inventoryProvider);
+    String searchQuery = query.toLowerCase();
 
-  Future<void> _loadInventoryItems() async {
-    List<Map<String, dynamic>> items =
-        await dbHelper.getInventoryByProject(widget.projectId);
     setState(() {
-      inventoryItems = items;
+      filteredItems = inventoryState.items.where((item) {
+        final itemName = item['item_name'].toString().toLowerCase();
+        return itemName.contains(searchQuery);
+      }).toList();
     });
   }
 
   void _addToCart(Map<String, dynamic> item) {
+    final inventoryState = ref.read(inventoryProvider).items;
     setState(() {
       int index =
           cartItems.indexWhere((cartItem) => cartItem['id'] == item['id']);
+      int stateIndex =
+          inventoryState.indexWhere((cartItem) => cartItem['id'] == item['id']);
       if (index != -1) {
-        cartItems[index]['quantity'] += 1;
-        cartItems[index]['totalPrice'] += item['price'];
+        print(cartItems[index]['stock_quantity']);
+        if (cartItems[index]['stock_quantity'] <
+            inventoryState[stateIndex]['stock_quantity']) {
+          cartItems[index]['stock_quantity'] += 1;
+          cartItems[index]['totalPrice'] += item['price'];
+          totalAmount += item['price'];
+        }
       } else {
         cartItems.add({
           'id': item['id'],
           'name': item['item_name'],
           'price': item['price'],
-          'quantity': 1,
+          'stock_quantity': 1,
           'totalPrice': item['price'],
         });
+        totalAmount += item['price'];
       }
-      totalAmount += item['price'];
     });
   }
 
@@ -68,23 +70,22 @@ class _CartPageState extends State<CartPage> {
     setState(() {
       int index =
           cartItems.indexWhere((cartItem) => cartItem['id'] == item['id']);
-      if (index != -1 && cartItems[index]['quantity'] > 0) {
-        cartItems[index]['quantity'] -= 1;
+      if (index != -1 && cartItems[index]['stock_quantity'] > 0) {
+        cartItems[index]['stock_quantity'] -= 1;
         cartItems[index]['totalPrice'] -= item['price'];
         totalAmount -= item['price'];
 
-        if (cartItems[index]['quantity'] == 0) {
+        if (cartItems[index]['stock_quantity'] == 0) {
           cartItems.removeAt(index);
         }
       }
     });
   }
 
-  // Checkout logic
   Future<void> _checkout() async {
     if (cartItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Keranjang kosong, tidak bisa checkout')),
+        const SnackBar(content: Text('Keranjang kosong, tidak bisa checkout')),
       );
       return;
     }
@@ -94,20 +95,20 @@ class _CartPageState extends State<CartPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Konfirmasi Checkout'),
-          content: Text('Apakah Anda yakin ingin melanjutkan checkout?'),
+          title: const Text('Konfirmasi Checkout'),
+          content: const Text('Apakah Anda yakin ingin melanjutkan checkout?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(), // Cancel action
-              child: Text('Batal'),
+              child: const Text('Batal'),
             ),
             TextButton(
               onPressed: () async {
-                Navigator.of(context).pop(); // Close the dialog
+                final projectInfo = ref.read(projectInfoProvider)!;
 
                 // Insert checkout history (saves current timestamp)
                 int checkoutId = await dbHelper.insertCheckoutHistory(
-                  widget.projectId,
+                  projectInfo.id,
                   totalAmount,
                 );
 
@@ -116,16 +117,18 @@ class _CartPageState extends State<CartPage> {
                   await dbHelper.insertCheckoutItem(
                     checkoutId,
                     item['id'],
-                    item['quantity'],
+                    item['stock_quantity'],
                     item['price'],
                   );
 
                   // Update the inventory stock quantity
                   await dbHelper.updateInventoryStock(
                     item['id'],
-                    item['quantity'],
+                    item['stock_quantity'],
                   );
                 }
+
+                ref.read(inventoryProvider.notifier).fetchInventory();
 
                 // Clear cart after checkout
                 setState(() {
@@ -133,14 +136,13 @@ class _CartPageState extends State<CartPage> {
                   totalAmount = 0.0;
                 });
 
-                // Reload the inventory after checkout
-                await _loadInventoryItems(); // Refetch inventory after checkout
+                Navigator.pop(context);
 
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Checkout berhasil!')),
+                  const SnackBar(content: Text('Checkout berhasil!')),
                 );
               },
-              child: Text('Checkout'),
+              child: const Text('Checkout'),
             ),
           ],
         );
@@ -150,19 +152,19 @@ class _CartPageState extends State<CartPage> {
 
   @override
   Widget build(BuildContext context) {
+    final projectInfo = ref.watch(projectInfoProvider)!;
+    final inventoryState = ref.watch(inventoryProvider);
+    final itemsToDisplay =
+        searchController.text.isEmpty ? inventoryState.items : filteredItems;
     return Scaffold(
-      backgroundColor: Colors.grey[300],
+      backgroundColor: Colors.grey[200],
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        title: Padding(
-          padding: const EdgeInsets.only(left: 16.0),
-          child: Text(
-            "Keranjang - ${widget.projectName}",
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-          ),
-        ),
-      ),
+          backgroundColor: Colors.blue[900],
+          foregroundColor: Colors.white,
+          title: const Text(
+            "Keranjang",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+          )),
       body: Padding(
         padding: const EdgeInsets.all(32.0),
         child: Row(
@@ -192,7 +194,7 @@ class _CartPageState extends State<CartPage> {
                         ElevatedButton(
                           onPressed: _checkout, // Trigger checkout
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
+                            backgroundColor: Colors.blue[900],
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
@@ -226,12 +228,12 @@ class _CartPageState extends State<CartPage> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: Icon(Icons.remove),
+                                  icon: const Icon(Icons.remove),
                                   onPressed: () => _removeFromCart(cartItem),
                                 ),
-                                Text(cartItem['quantity'].toString()),
+                                Text(cartItem['stock_quantity'].toString()),
                                 IconButton(
-                                  icon: Icon(Icons.add),
+                                  icon: const Icon(Icons.add),
                                   onPressed: () => _addToCart(cartItem),
                                 ),
                               ],
@@ -260,8 +262,8 @@ class _CartPageState extends State<CartPage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: TextField(
-                        controller: _searchController,
-                        onChanged: _search,
+                        controller: searchController,
+                        onChanged: _searchItems,
                         decoration: const InputDecoration(
                           hintText: "Pencarian Produk",
                           border: InputBorder.none,
@@ -278,9 +280,9 @@ class _CartPageState extends State<CartPage> {
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: ListView.builder(
-                        itemCount: inventoryItems.length,
+                        itemCount: itemsToDisplay.length,
                         itemBuilder: (context, index) {
-                          final item = inventoryItems[index];
+                          final item = itemsToDisplay[index];
                           return ListTile(
                             title: Text(item['item_name']),
                             subtitle: Text(
