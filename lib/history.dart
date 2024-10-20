@@ -211,7 +211,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     ),
                     child: Text(
                       selectedDate1 != null
-                          ? 'Mulai: ${selectedDate1!.toLocal().toString().split(' ')[0]}'
+                          ? 'Mulai: ${DateFormat('dd MMMM yyyy').format(selectedDate1!)}'
                           : 'Pilih Range Awal',
                       style:
                           TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
@@ -234,7 +234,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     ),
                     child: Text(
                       selectedDate2 != null
-                          ? 'Sampai: ${selectedDate2!.toLocal().toString().split(' ')[0]}'
+                          ? 'Sampai: ${DateFormat('dd MMMM yyyy').format(selectedDate2!)}'
                           : 'Pilih Range Akhir',
                       style:
                           TextStyle(fontSize: 12, fontWeight: FontWeight.w500),

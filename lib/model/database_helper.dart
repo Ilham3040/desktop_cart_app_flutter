@@ -448,7 +448,7 @@ class DatabaseHelper {
     );
   }
 
-    Future<List<Map<String, dynamic>>> getSummedCheckoutItemsByProject(
+  Future<List<Map<String, dynamic>>> getSummedCheckoutItemsByProject(
       int projectId) async {
     final db = await database;
 
@@ -464,15 +464,16 @@ class DatabaseHelper {
   }
 
   Future<List<Map<String, dynamic>>> getSummedCheckoutItemsByProjectInRange(
-    int projectId, DateTime startDate, DateTime endDate) async {
-  final db = await database;
+      int projectId, DateTime startDate, DateTime endDate) async {
+    final db = await database;
 
-  // Format the DateTime to 'YYYY-MM-DD'
-  final String formattedStartDate = DateFormat('yyyy-MM-dd').format(startDate);
-  final String formattedEndDate = DateFormat('yyyy-MM-dd').format(endDate);
+    // Format the DateTime to 'YYYY-MM-DD'
+    final String formattedStartDate =
+        DateFormat('yyyy-MM-dd').format(startDate);
+    final String formattedEndDate = DateFormat('yyyy-MM-dd').format(endDate);
 
-  // Use a JOIN query to combine checkout_items, inventory, and checkout_history with a date range filter
-  final List<Map<String, dynamic>> result = await db.rawQuery('''
+    // Use a JOIN query to combine checkout_items, inventory, and checkout_history with a date range filter
+    final List<Map<String, dynamic>> result = await db.rawQuery('''
     SELECT i.item_name, DATE(ch.checkout_date) AS checkout_date, SUM(ci.quantity) AS total_quantity
     FROM checkout_items ci
     JOIN inventory i ON ci.item_id = i.id
@@ -483,6 +484,6 @@ class DatabaseHelper {
     ORDER BY DATE(ch.checkout_date) DESC
   ''', [projectId, formattedStartDate, formattedEndDate]);
 
-  return result;
-}
+    return result;
+  }
 }

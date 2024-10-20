@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'model/database_helper.dart';
 import 'package:intl/intl.dart'; // Import for date formatting
-import 'package:intl/date_symbol_data_local.dart';
 import 'providers/projectinfo_provider.dart';
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 
-class Exporting_History extends StatefulWidget {
+class Exporting_History extends ConsumerStatefulWidget {
   final DateTime? selectedDate1Export;
   final DateTime? selectedDate2Export;
 
@@ -17,15 +15,33 @@ class Exporting_History extends StatefulWidget {
   _Exporting_HistoryState createState() => _Exporting_HistoryState();
 }
 
-class _Exporting_HistoryState extends State<Exporting_History> {
+class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
+  final DatabaseHelper dbHelper = DatabaseHelper();
   DateTime? selectedDate1Export;
   DateTime? selectedDate2Export;
+  String? errorMessage; // Variable to hold error message
 
   @override
   void initState() {
     super.initState();
     selectedDate1Export = widget.selectedDate1Export;
     selectedDate2Export = widget.selectedDate2Export;
+  }
+
+  bool checkDateRange(BuildContext context) {
+    if (selectedDate1Export != null &&
+        selectedDate2Export != null &&
+        selectedDate1Export!.isAfter(selectedDate2Export!)) {
+      setState(() {
+        errorMessage =
+            'Terjadi kesalahan pada penginputan range tanggal'; // Set error message
+      });
+      return false; // Return false if the date range is invalid
+    }
+    setState(() {
+      errorMessage = null; // Clear error message if valid
+    });
+    return true; // Return true if the date range is valid
   }
 
   Future<void> _showDatePickerDialog(
@@ -56,10 +72,21 @@ class _Exporting_HistoryState extends State<Exporting_History> {
                 if (_tempSelectedDates.isNotEmpty) {
                   setState(() {
                     if (datePickerNumber == 1) {
+                      DateTime? prevDate1 = selectedDate1Export;
                       selectedDate1Export = _tempSelectedDates.last;
-                    } else {
+                      if (!checkDateRange(context)) {
+                        selectedDate1Export =
+                            prevDate1; // Revert to previous date
+                      }
+                    } else if (datePickerNumber == 2) {
+                      DateTime? prevDate2 = selectedDate2Export;
                       selectedDate2Export = _tempSelectedDates.last;
+                      if (!checkDateRange(context)) {
+                        selectedDate2Export =
+                            prevDate2; // Revert to previous date
+                      }
                     }
+                    // _loadHistoryByRangeDate(); // Call this method if necessary
                   });
                 }
                 Navigator.of(context).pop(_tempSelectedDates);
@@ -80,59 +107,81 @@ class _Exporting_HistoryState extends State<Exporting_History> {
 
   @override
   Widget build(BuildContext context) {
+    // Format the selected dates
+    String formattedDate1 = selectedDate1Export != null
+        ? DateFormat('dd MMMM yyyy').format(selectedDate1Export!)
+        : 'Pilih Range Awal';
+
+    String formattedDate2 = selectedDate2Export != null
+        ? DateFormat('dd MMMM yyyy').format(selectedDate2Export!)
+        : 'Pilih Range Akhir';
+
     return AlertDialog(
       title: Text('Pilih Range Data Export'),
       content: Padding(
         padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // Make the column take minimal space
           children: [
-            GestureDetector(
-              onTap: () {
-                _showDatePickerDialog(context, 1);
-              },
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.blue[900] ?? Colors.blue),
-                  borderRadius: BorderRadius.circular(10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    _showDatePickerDialog(context, 1);
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    decoration: BoxDecoration(
+                      border:
+                          Border.all(color: Colors.blue[900] ?? Colors.blue),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Mulai: $formattedDate1',
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                  ),
                 ),
-                child: Text(
-                  selectedDate1Export != null
-                      ? 'Mulai: ${selectedDate1Export!.toLocal().toString().split(' ')[0]}'
-                      : 'Pilih Range Awal',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                SizedBox(width: 16),
+                GestureDetector(
+                  onTap: () {
+                    _showDatePickerDialog(context, 2);
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    decoration: BoxDecoration(
+                      border:
+                          Border.all(color: Colors.blue[900] ?? Colors.blue),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Sampai: $formattedDate2',
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-            SizedBox(width: 16), // Space between the two containers
-
-            // Second date picker
-            GestureDetector(
-              onTap: () {
-                _showDatePickerDialog(context, 2);
-              },
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.blue[900] ?? Colors.blue),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  selectedDate2Export != null
-                      ? 'Sampai: ${selectedDate2Export!.toLocal().toString().split(' ')[0]}'
-                      : 'Pilih Range Akhir',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                ),
+            SizedBox(
+                height: 8), // Spacing between date selection and error message
+            if (errorMessage != null) // Display error message if it's not null
+              Text(
+                errorMessage!,
+                style: TextStyle(color: Colors.red),
               ),
-            ),
           ],
         ),
       ),
       actions: [
         TextButton(
           child: Text('Konfirmasi'),
-          onPressed: () {
+          onPressed: () async {
+            final projectId = ref.read(projectInfoProvider)!.id;
+            print(await dbHelper.getSummedCheckoutItemsByProjectInRange(
+                projectId, selectedDate1Export!, selectedDate2Export!));
             Navigator.of(context).pop();
           },
         ),
