@@ -193,7 +193,6 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
             final Excel.Worksheet sheet =
                 workbook.worksheets.addWithName('Checkout Data');
 
-            // Create headers
             List<String> staticHeaders = ['No', 'Nama Barang', 'Harga Barang'];
             List<String> dynamicHeaders = [];
 
@@ -208,13 +207,16 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
               }
             }
 
-            // Create dynamic headers based on grouped data (dates)
-            groupedData.forEach((date, _) {
+            // Sort the dates from oldest to newest
+            var sortedDates = groupedData.keys.toList()
+              ..sort((a, b) => DateTime.parse(a).compareTo(DateTime.parse(b)));
+
+            // Create dynamic headers based on sorted grouped data (dates)
+            sortedDates.forEach((date) {
               dynamicHeaders.add('Jumlah Barang');
               dynamicHeaders.add('Total Harga');
             });
 
-            // Merge the static headers "No", "Nama Barang", "Harga Barang"
             for (var i = 0; i < staticHeaders.length; i++) {
               final cell = sheet.getRangeByIndex(1, i + 1, 2, i + 1);
               cell.merge();
@@ -225,12 +227,8 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
               cell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
             }
 
-            // Add dynamic headers with dates merged for "Jumlah Barang" and "Total Harga"
             int startColumn = staticHeaders.length + 1;
-            for (var i = 0; i < dynamicHeaders.length / 2; i++) {
-              final date = groupedData.keys.elementAt(i);
-
-              // Merge the date across two columns (Jumlah Barang, Total Harga)
+            for (var date in sortedDates) {
               final dateCell =
                   sheet.getRangeByIndex(1, startColumn, 1, startColumn + 1);
               dateCell.merge();
@@ -239,7 +237,6 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
               dateCell.cellStyle.hAlign = Excel.HAlignType.center;
               dateCell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
 
-              // Add "Jumlah Barang" and "Total Harga" underneath the date
               final jumlahBarangCell = sheet.getRangeByIndex(2, startColumn);
               jumlahBarangCell.setText('Jumlah Barang');
               jumlahBarangCell.cellStyle.bold = true;
@@ -257,7 +254,10 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
               startColumn += 2;
             }
 
-            // Adding product rows (starting from row 3)
+            // Variables to store totals for each date column
+            List<double> totalQuantities = List.filled(sortedDates.length, 0.0);
+            List<double> totalValues = List.filled(sortedDates.length, 0.0);
+
             for (var i = 0; i < productsList.length; i++) {
               var product = productsList[i];
               String itemName = product['item_name'];
@@ -270,20 +270,24 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
                 price, // Price as double
               ];
 
-              // Fill in dynamic data for each date
-              groupedData.forEach((date, items) {
-                var checkoutEntry = items.firstWhere(
+              // Fill in dynamic data for each sorted date
+              sortedDates.forEach((date) {
+                var checkoutEntry = groupedData[date]?.firstWhere(
                   (item) => item['item_name'] == itemName,
                   orElse: () => {'item_name': itemName, 'total_quantity': 0},
                 );
 
-                double totalQuantity = checkoutEntry['total_quantity'] != null
+                double totalQuantity = checkoutEntry!['total_quantity'] != null
                     ? checkoutEntry['total_quantity'].toDouble()
                     : 0.0;
                 double totalValue = price * totalQuantity;
 
                 row.add(totalQuantity);
                 row.add(totalValue);
+
+                // Accumulate totals
+                totalQuantities[sortedDates.indexOf(date)] += totalQuantity;
+                totalValues[sortedDates.indexOf(date)] += totalValue;
               });
 
               // Insert row into the sheet
@@ -292,25 +296,48 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
                 var value = row[j];
 
                 if (j == 0 || j >= 3) {
-                  // For "No", "Jumlah Barang", and "Total Harga"
                   double numberValue = value != null ? value.toDouble() : 0.0;
                   cell.setNumber(numberValue);
                   cell.numberFormat = '0'; // Format as whole number
                 } else if (j == 2) {
-                  // For "Harga Barang"
                   double priceValue = value;
                   cell.setNumber(priceValue);
                   cell.numberFormat = priceValue == priceValue.toInt()
                       ? '0'
                       : '0.00'; // Integer or 2 decimal places
                 } else {
-                  // For "Nama Barang"
                   cell.setText(value.toString());
                 }
 
                 cell.cellStyle.hAlign = Excel.HAlignType.center;
                 cell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
               }
+            }
+
+            // Write totals at the bottom of the table
+            int totalRow =
+                productsList.length + 3; // Calculate the row for totals
+            for (var k = 0; k < totalQuantities.length; k++) {
+              final totalQtyCell = sheet.getRangeByIndex(
+                  totalRow, 4 + k * 2); // Changed index to 4
+              final totalValCell = sheet.getRangeByIndex(
+                  totalRow, 5 + k * 2); // Changed index to 5
+
+              totalQtyCell.setValue("Total Penjualan");
+              totalQtyCell.cellStyle.bold = true;
+              totalQtyCell.cellStyle.hAlign = Excel.HAlignType.center;
+              totalQtyCell.cellStyle.borders.all.lineStyle =
+                  Excel.LineStyle.thin;
+
+              totalValCell.setNumber(totalValues[k]);
+              totalValCell.cellStyle.bold = true;
+              totalValCell.cellStyle.hAlign = Excel.HAlignType.center;
+              totalValCell.cellStyle.borders.all.lineStyle =
+                  Excel.LineStyle.thin;
+
+              // Format the total value to remove trailing zeros
+              totalValCell.numberFormat =
+                  totalValues[k] == totalValues[k].toInt() ? '0' : '0.00';
             }
 
             // Saving the Excel file
