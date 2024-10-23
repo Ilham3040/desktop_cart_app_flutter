@@ -474,7 +474,7 @@ class DatabaseHelper {
 
     // Use a JOIN query to combine checkout_items, inventory, and checkout_history with a date range filter
     final List<Map<String, dynamic>> result = await db.rawQuery('''
-    SELECT i.item_name, DATE(ch.checkout_date) AS checkout_date, SUM(ci.quantity) AS total_quantity
+    SELECT i.item_name, i.price ,DATE(ch.checkout_date) AS checkout_date, SUM(ci.quantity) AS total_quantity
     FROM checkout_items ci
     JOIN inventory i ON ci.item_id = i.id
     JOIN checkout_history ch ON ci.checkout_history_id = ch.id
