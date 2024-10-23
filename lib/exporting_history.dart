@@ -186,15 +186,14 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
                 await dbHelper.getSummedCheckoutItemsByProjectInRange(
                     projectId, selectedDate1Export!, selectedDate2Export!);
 
-            // Create a new Excel document
-            final Excel.Workbook workbook = Excel.Workbook();
+            final List<Map<String, dynamic>> productsList =
+                await dbHelper.getInventoryByProject(projectId);
 
-            // Group the data by checkout_date
+            final Excel.Workbook workbook = Excel.Workbook();
             Map<String, List<Map<String, dynamic>>> groupedData = {};
 
             for (var entry in checkoutData) {
               String checkoutDate = entry['checkout_date'];
-
               if (groupedData.containsKey(checkoutDate)) {
                 groupedData[checkoutDate]!.add(entry);
               } else {
@@ -202,88 +201,108 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
               }
             }
 
-            // Add each group of data as a separate sheet
             groupedData.forEach((date, items) {
               final Excel.Worksheet sheet =
                   workbook.worksheets.addWithName(date);
 
-              // Add headers
+              // Headers including Total Value
               List<String> headers = [
                 'No',
                 'Nama Barang',
                 'Harga Barang',
-                'Jumlah Barang'
+                'Jumlah Barang',
+                'Total Value' // New header for total value
               ];
+
               for (var j = 0; j < headers.length; j++) {
                 final cell = sheet.getRangeByIndex(1, j + 1);
                 cell.setText(headers[j]);
-                // Apply border and alignment for headers
                 cell.cellStyle.bold = true;
                 cell.cellStyle.hAlign = Excel.HAlignType.center;
                 cell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
               }
 
-              // Add data rows
-              for (var i = 0; i < items.length; i++) {
-                var item = items[i];
+              // Adding product rows
+              for (var i = 0; i < productsList.length; i++) {
+                var product = productsList[i];
+                String itemName = product['item_name'];
+                double price = product['price'] != null
+                    ? product['price'].toDouble()
+                    : 0.0;
+                double totalQuantity = 0.0;
 
-                // Safely handle price and total quantity as double
-                double price = (item['price'] != null)
-                    ? (item['price'] is int)
-                        ? (item['price'] as int)
-                            .toDouble() // Convert int to double
-                        : item['price'] as double // Use double directly
-                    : 0.0; // If null, return 0.0
+                // Check if this product exists in the checkout data for the current date
+                var checkoutEntry = items.firstWhere(
+                  (item) => item['item_name'] == itemName,
+                  orElse: () => {
+                    'item_name': itemName,
+                    'total_quantity': 0
+                  }, // Default if no sales
+                );
 
-                double totalQuantity = (item['total_quantity'] != null)
-                    ? (item['total_quantity'] is int)
-                        ? (item['total_quantity'] as int)
-                            .toDouble() // Convert int to double
-                        : item['total_quantity']
-                            as double // Use double directly
-                    : 0.0; // If null, return 0.0
+                totalQuantity = checkoutEntry['total_quantity'] != null
+                    ? checkoutEntry['total_quantity'].toDouble()
+                    : 0.0;
+
+                // Calculate Total Value as price * totalQuantity
+                double totalValue = price * totalQuantity;
 
                 List<dynamic> row = [
-                  (i + 1), // Number (No)
-                  item['item_name'], // Item Name
+                  (i + 1), // No
+                  itemName, // Item Name
                   price, // Price as double
                   totalQuantity, // Total Quantity as double
+                  totalValue, // Total Value as price * totalQuantity
                 ];
 
                 for (var j = 0; j < row.length; j++) {
                   final cell = sheet.getRangeByIndex(i + 2, j + 1);
                   var value = row[j];
-                  if (j == 0 || j == 2) {
-                    // "No" and "Total Quantity"
-                    double numberValue = value != null
-                        ? value.toDouble()
-                        : 0.0; // Ensure the value is a number or fallback to 0
-                    cell.setNumber(numberValue); // Set value as a number
-                    cell.numberFormat = '#'; // Format without decimals
-                  } else if (j == 3) {
-                    // For "Price"
+
+                  if (j == 0 || j == 3 || j == 4) {
+                    double numberValue = value != null ? value.toDouble() : 0.0;
+                    cell.setNumber(numberValue);
+                    cell.numberFormat =
+                        '0'; // Format as whole number (no decimals)
+                  } else if (j == 2) {
                     double priceValue = value;
-                    cell.setNumber(priceValue); // Set the value as a number
-                    // Remove ".0" if it's an integer
+                    cell.setNumber(priceValue);
                     if (priceValue == priceValue.toInt()) {
-                      cell.numberFormat = '#'; // No decimals for integers
+                      cell.numberFormat = '0'; // No decimals for integers
                     } else {
                       cell.numberFormat =
-                          '#.##'; // Keep two decimals for floats
+                          '0.00'; // Keep two decimals for floats
                     }
                   } else {
-                    // For "Item Name"
                     cell.setText(value.toString());
                   }
 
-                  // Apply border and center alignment for data cells
                   cell.cellStyle.hAlign = Excel.HAlignType.center;
                   cell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
                 }
               }
+
+              // Get the total number of rows (including header)
+              int totalRows = productsList.length + 1;
+
+              // Add the total sum formula at the end of the "Total Value" column
+              final sumCell = sheet.getRangeByIndex(totalRows + 1,
+                  5); // The row after the last item, 5th column (Total Value)
+              sumCell.setFormula('=SUM(E2:E$totalRows)');
+              sumCell.cellStyle.bold = true;
+              sumCell.cellStyle.hAlign = Excel.HAlignType.center;
+              sumCell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
+
+              // Label the total row
+              final totalLabelCell = sheet.getRangeByIndex(
+                  totalRows + 1, 4); // 4th column for "Jumlah Barang"
+              totalLabelCell.setText('Total');
+              totalLabelCell.cellStyle.bold = true;
+              totalLabelCell.cellStyle.hAlign = Excel.HAlignType.right;
+              totalLabelCell.cellStyle.borders.all.lineStyle =
+                  Excel.LineStyle.thin;
             });
 
-            // Ask the user where to save the file
             String? outputFilePath = await FilePicker.platform.saveFile(
               dialogTitle: 'Save Excel File',
               fileName: 'checkout_data.xlsx',
