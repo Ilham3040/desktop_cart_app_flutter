@@ -182,108 +182,192 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
           child: Text('Konfirmasi'),
           onPressed: () async {
             final projectId = ref.read(projectInfoProvider)!.id;
+
+            // Generate all dates in the range
+            List<DateTime> allDates = [];
+            DateTime currentDate = selectedDate1Export!;
+            while (!currentDate.isAfter(selectedDate2Export!)) {
+              allDates.add(currentDate);
+              currentDate = currentDate.add(Duration(days: 1));
+            }
+
+            // Get checkout data
             final List<Map<String, dynamic>> checkoutData =
                 await dbHelper.getSummedCheckoutItemsByProjectInRange(
                     projectId, selectedDate1Export!, selectedDate2Export!);
 
-            // Create a new Excel document
+            final List<Map<String, dynamic>> productsList =
+                await dbHelper.getInventoryByProject(projectId);
+
             final Excel.Workbook workbook = Excel.Workbook();
+            final Excel.Worksheet sheet =
+                workbook.worksheets.addWithName('Checkout Data');
 
-            // Group the data by checkout_date
+            List<String> staticHeaders = ['No', 'Nama Barang', 'Harga Barang'];
+            List<String> dynamicHeaders = [];
+
+            // Prepare data mapping for easy access
             Map<String, List<Map<String, dynamic>>> groupedData = {};
-
             for (var entry in checkoutData) {
               String checkoutDate = entry['checkout_date'];
-
-              if (groupedData.containsKey(checkoutDate)) {
-                groupedData[checkoutDate]!.add(entry);
-              } else {
-                groupedData[checkoutDate] = [entry];
+              if (!groupedData.containsKey(checkoutDate)) {
+                groupedData[checkoutDate] = [];
               }
+              groupedData[checkoutDate]!.add(entry);
             }
 
-            // Add each group of data as a separate sheet
-            groupedData.forEach((date, items) {
-              final Excel.Worksheet sheet =
-                  workbook.worksheets.addWithName(date);
+            // Create dynamic headers based on all dates
+            for (var date in allDates) {
+              dynamicHeaders.add('Jumlah Barang');
+              dynamicHeaders.add('Total Harga');
+            }
+            dynamicHeaders.add('Jumlah Penjualan'); // Add total sales column
 
-              // Add headers
-              List<String> headers = [
-                'No',
-                'Nama Barang',
-                'Harga Barang',
-                'Jumlah Barang'
+            // Merge static headers
+            for (var i = 0; i < staticHeaders.length; i++) {
+              final cell = sheet.getRangeByIndex(1, i + 1, 2, i + 1);
+              cell.merge();
+              cell.setText(staticHeaders[i]);
+              cell.cellStyle.bold = true;
+              cell.cellStyle.hAlign = Excel.HAlignType.center;
+              cell.cellStyle.vAlign = Excel.VAlignType.center;
+              cell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
+            }
+
+            // Add dynamic headers with dates merged for "Jumlah Barang" and "Total Harga"
+            int startColumn = staticHeaders.length + 1;
+
+            for (var date in allDates) {
+              final dateString =
+                  date.toIso8601String().split('T').first; // Format date
+              final dateCell =
+                  sheet.getRangeByIndex(1, startColumn, 1, startColumn + 1);
+              dateCell.merge();
+              dateCell.setText(dateString);
+              dateCell.cellStyle.bold = true;
+              dateCell.cellStyle.hAlign = Excel.HAlignType.center;
+              dateCell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
+
+              final jumlahBarangCell = sheet.getRangeByIndex(2, startColumn);
+              jumlahBarangCell.setText('Jumlah Barang');
+              jumlahBarangCell.cellStyle.bold = true;
+              jumlahBarangCell.cellStyle.hAlign = Excel.HAlignType.center;
+              jumlahBarangCell.cellStyle.borders.all.lineStyle =
+                  Excel.LineStyle.thin;
+
+              final totalHargaCell = sheet.getRangeByIndex(2, startColumn + 1);
+              totalHargaCell.setText('Total Harga');
+              totalHargaCell.cellStyle.bold = true;
+              totalHargaCell.cellStyle.hAlign = Excel.HAlignType.center;
+              totalHargaCell.cellStyle.borders.all.lineStyle =
+                  Excel.LineStyle.thin;
+
+              startColumn +=
+                  2; // Move to the next set of columns for the next date
+            }
+
+            // Add the "Jumlah Penjualan" header
+            final sumHeaderCell = sheet.getRangeByIndex(2, startColumn);
+            sumHeaderCell.setText('Jumlah Penjualan');
+            sumHeaderCell.cellStyle.bold = true;
+            sumHeaderCell.cellStyle.hAlign = Excel.HAlignType.center;
+            sumHeaderCell.cellStyle.borders.all.lineStyle =
+                Excel.LineStyle.thin;
+
+            // Adding product rows (starting from row 3)
+            // Adding product rows (starting from row 3)
+            double totalJumlahPenjualan =
+                0.0; // Initialize total sum for "Jumlah Penjualan"
+
+            for (var i = 0; i < productsList.length; i++) {
+              var product = productsList[i];
+              String itemName = product['item_name'];
+              double price =
+                  product['price'] != null ? product['price'].toDouble() : 0.0;
+
+              List<dynamic> row = [
+                (i + 1), // No
+                itemName, // Item Name
+                price, // Price as double
               ];
-              for (var j = 0; j < headers.length; j++) {
-                final cell = sheet.getRangeByIndex(1, j + 1);
-                cell.setText(headers[j]);
-                // Apply border and alignment for headers
-                cell.cellStyle.bold = true;
+
+              double totalSumForRow = 0.0; // Initialize total sum for this row
+
+              // Fill in dynamic data for each date
+              // Fill in dynamic data for each date
+              // Fill in dynamic data for each date
+// Fill in dynamic data for each date
+              for (var date in allDates) {
+                String dateString =
+                    date.toIso8601String().split('T').first; // Format date
+
+                // Check if there are sales data for this date
+                var checkoutEntry = groupedData[dateString]?.firstWhere(
+                  (item) => item['item_name'] == itemName,
+                  orElse: () => {
+                    'total_quantity': 0
+                  }, // Return a map with total_quantity set to 0
+                );
+
+                // Use null-aware operator to safely access total_quantity
+                double totalQuantity =
+                    checkoutEntry?['total_quantity']?.toDouble() ?? 0.0;
+
+                double totalValue = price * totalQuantity;
+
+                row.add(totalQuantity); // Add quantity for the date
+                row.add(totalValue); // Add total value for the date
+
+                totalSumForRow +=
+                    totalValue; // Add to the total sum for this row
+              }
+              // Add the total sum for this product to the end of the row
+              row.add(totalSumForRow);
+              totalJumlahPenjualan +=
+                  totalSumForRow; // Accumulate the total for "Jumlah Penjualan"
+
+              // Insert row into the sheet
+              for (var j = 0; j < row.length; j++) {
+                final cell = sheet.getRangeByIndex(
+                    i + 3, j + 1); // Adjust index based on your layout
+                var value = row[j];
+
+                if (j == 0 || j >= 3) {
+                  double numberValue = value != null ? value.toDouble() : 0.0;
+                  cell.setNumber(numberValue);
+                  cell.numberFormat = '0'; // Format as whole number
+                } else if (j == 2) {
+                  double priceValue = value;
+                  cell.setNumber(priceValue);
+                  cell.numberFormat = priceValue == priceValue.toInt()
+                      ? '0'
+                      : '0.00'; // Integer or 2 decimal places
+                } else {
+                  cell.setText(value.toString()); // For "Nama Barang"
+                }
+
                 cell.cellStyle.hAlign = Excel.HAlignType.center;
                 cell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
               }
+            }
 
-              // Add data rows
-              for (var i = 0; i < items.length; i++) {
-                var item = items[i];
+            // Add the total sum for "Jumlah Penjualan" below the last product row
+            final totalSumCell =
+                sheet.getRangeByIndex(productsList.length + 3, startColumn - 1);
+            totalSumCell.setText('Total');
+            totalSumCell.cellStyle.bold = true;
+            totalSumCell.cellStyle.hAlign = Excel.HAlignType.center;
+            totalSumCell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
 
-                // Safely handle price and total quantity as double
-                double price = (item['price'] != null)
-                    ? (item['price'] is int)
-                        ? (item['price'] as int)
-                            .toDouble() // Convert int to double
-                        : item['price'] as double // Use double directly
-                    : 0.0; // If null, return 0.0
+            // Insert the total sum value in the cell below the "Jumlah Penjualan" header
+            final totalValueCell =
+                sheet.getRangeByIndex(productsList.length + 3, startColumn);
+            totalValueCell.setNumber(totalJumlahPenjualan);
+            totalValueCell.cellStyle.hAlign = Excel.HAlignType.center;
+            totalValueCell.cellStyle.borders.all.lineStyle =
+                Excel.LineStyle.thin;
 
-                double totalQuantity = (item['total_quantity'] != null)
-                    ? (item['total_quantity'] is int)
-                        ? (item['total_quantity'] as int)
-                            .toDouble() // Convert int to double
-                        : item['total_quantity']
-                            as double // Use double directly
-                    : 0.0; // If null, return 0.0
-
-                List<dynamic> row = [
-                  (i + 1), // Number (No)
-                  item['item_name'], // Item Name
-                  price, // Price as double
-                  totalQuantity, // Total Quantity as double
-                ];
-
-                for (var j = 0; j < row.length; j++) {
-                  final cell = sheet.getRangeByIndex(i + 2, j + 1);
-                  var value = row[j];
-                  if (j == 0 || j == 2) {
-                    // "No" and "Total Quantity"
-                    double numberValue = value != null
-                        ? value.toDouble()
-                        : 0.0; // Ensure the value is a number or fallback to 0
-                    cell.setNumber(numberValue); // Set value as a number
-                    cell.numberFormat = '#'; // Format without decimals
-                  } else if (j == 3) {
-                    // For "Price"
-                    double priceValue = value;
-                    cell.setNumber(priceValue); // Set the value as a number
-                    // Remove ".0" if it's an integer
-                    if (priceValue == priceValue.toInt()) {
-                      cell.numberFormat = '#'; // No decimals for integers
-                    } else {
-                      cell.numberFormat =
-                          '#.##'; // Keep two decimals for floats
-                    }
-                  } else {
-                    // For "Item Name"
-                    cell.setText(value.toString());
-                  }
-
-                  // Apply border and center alignment for data cells
-                  cell.cellStyle.hAlign = Excel.HAlignType.center;
-                  cell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
-                }
-              }
-            });
-
-            // Ask the user where to save the file
+            // Saving the Excel file
             String? outputFilePath = await FilePicker.platform.saveFile(
               dialogTitle: 'Save Excel File',
               fileName: 'checkout_data.xlsx',
@@ -303,7 +387,7 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
 
               print('Excel file saved to: $outputFilePath');
             } else {
-              print('User canceled the save operation.');
+              print('User  canceled the save operation.');
             }
 
             Navigator.of(context).pop();
