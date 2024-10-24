@@ -486,4 +486,27 @@ class DatabaseHelper {
 
     return result;
   }
+
+  Future<List<Map<String, dynamic>>> getSummedStockRecordsByProjectInRange(
+      int projectId, DateTime startDate, DateTime endDate) async {
+    final db = await database;
+
+    // Format the DateTime to 'YYYY-MM-DD'
+    final String formattedStartDate =
+        DateFormat('yyyy-MM-dd').format(startDate);
+    final String formattedEndDate = DateFormat('yyyy-MM-dd').format(endDate);
+
+    // Use a JOIN query to combine stock_record and inventory with a date range filter
+    final List<Map<String, dynamic>> result = await db.rawQuery('''
+    SELECT i.item_name, sr.stock_added, sr.cost_price, sr.sell_price, 
+           DATE(sr.added_at) AS added_at, sr.stock_after
+    FROM stock_record sr
+    JOIN inventory i ON sr.item_id = i.id
+    WHERE sr.project_id = ?
+    AND DATE(sr.added_at) BETWEEN ? AND ?
+    ORDER BY DATE(sr.added_at) DESC
+  ''', [projectId, formattedStartDate, formattedEndDate]);
+
+    return result;
+  }
 }
