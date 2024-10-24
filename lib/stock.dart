@@ -1,3 +1,4 @@
+import 'package:cart_app/exporting_stock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'model/database_helper.dart';
@@ -245,6 +246,30 @@ class _StockRecordsPageState extends ConsumerState<StockRecordsPage> {
                     ),
                   ),
                 ),
+                SizedBox(width: 16),
+                ElevatedButton(
+                  style: ButtonStyle(
+                    foregroundColor: WidgetStatePropertyAll(Colors.white),
+                    backgroundColor:
+                        WidgetStatePropertyAll(Colors.blue[900] ?? Colors.blue),
+                    shape: WidgetStatePropertyAll<RoundedRectangleBorder>(
+                      RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                  ),
+                  onPressed: () {
+                    selectingRangeForExportedStock(context);
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    child: Text(
+                      "Export Data",
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                )
               ],
             ),
           ),
