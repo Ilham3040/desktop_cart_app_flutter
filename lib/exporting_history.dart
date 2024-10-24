@@ -182,6 +182,16 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
           child: Text('Konfirmasi'),
           onPressed: () async {
             final projectId = ref.read(projectInfoProvider)!.id;
+
+            // Generate all dates in the range
+            List<DateTime> allDates = [];
+            DateTime currentDate = selectedDate1Export!;
+            while (!currentDate.isAfter(selectedDate2Export!)) {
+              allDates.add(currentDate);
+              currentDate = currentDate.add(Duration(days: 1));
+            }
+
+            // Get checkout data
             final List<Map<String, dynamic>> checkoutData =
                 await dbHelper.getSummedCheckoutItemsByProjectInRange(
                     projectId, selectedDate1Export!, selectedDate2Export!);
@@ -196,31 +206,22 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
             List<String> staticHeaders = ['No', 'Nama Barang', 'Harga Barang'];
             List<String> dynamicHeaders = [];
 
+            // Prepare data mapping for easy access
             Map<String, List<Map<String, dynamic>>> groupedData = {};
-            Map<String, double> totalSumByDate = {};
-
             for (var entry in checkoutData) {
               String checkoutDate = entry['checkout_date'];
-              double totalHarga = entry['total_harga']?.toDouble() ?? 0.0;
-
-              if (groupedData.containsKey(checkoutDate)) {
-                groupedData[checkoutDate]!.add(entry);
-                totalSumByDate[checkoutDate] =
-                    (totalSumByDate[checkoutDate] ?? 0.0) + totalHarga;
-              } else {
-                groupedData[checkoutDate] = [entry];
-                totalSumByDate[checkoutDate] = totalHarga;
+              if (!groupedData.containsKey(checkoutDate)) {
+                groupedData[checkoutDate] = [];
               }
+              groupedData[checkoutDate]!.add(entry);
             }
 
-            // Create dynamic headers based on grouped data (dates)
-            groupedData.forEach((date, _) {
+            // Create dynamic headers based on all dates
+            for (var date in allDates) {
               dynamicHeaders.add('Jumlah Barang');
               dynamicHeaders.add('Total Harga');
-            });
-
-            // Add "Jumlah Penjualan" sum column header
-            dynamicHeaders.add('Jumlah Penjualan');
+            }
+            dynamicHeaders.add('Jumlah Penjualan'); // Add total sales column
 
             // Merge static headers
             for (var i = 0; i < staticHeaders.length; i++) {
@@ -235,22 +236,14 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
 
             // Add dynamic headers with dates merged for "Jumlah Barang" and "Total Harga"
             int startColumn = staticHeaders.length + 1;
-            int numberOfDates = groupedData.length;
 
-            for (var i = 0; i < numberOfDates; i++) {
-              final date = groupedData.keys.elementAt(i);
-
+            for (var date in allDates) {
+              final dateString =
+                  date.toIso8601String().split('T').first; // Format date
               final dateCell =
                   sheet.getRangeByIndex(1, startColumn, 1, startColumn + 1);
-
-              // Ensure the cell is not already merged
-              try {
-                dateCell.merge();
-              } catch (e) {
-                print('Error merging date cell: $e');
-              }
-
-              dateCell.setText(date);
+              dateCell.merge();
+              dateCell.setText(dateString);
               dateCell.cellStyle.bold = true;
               dateCell.cellStyle.hAlign = Excel.HAlignType.center;
               dateCell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
@@ -282,7 +275,7 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
                 Excel.LineStyle.thin;
 
             // Adding product rows (starting from row 3)
-// Adding product rows (starting from row 3)
+            // Adding product rows (starting from row 3)
             double totalJumlahPenjualan =
                 0.0; // Initialize total sum for "Jumlah Penjualan"
 
@@ -301,24 +294,33 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
               double totalSumForRow = 0.0; // Initialize total sum for this row
 
               // Fill in dynamic data for each date
-              groupedData.forEach((date, items) {
-                var checkoutEntry = items.firstWhere(
+              // Fill in dynamic data for each date
+              // Fill in dynamic data for each date
+// Fill in dynamic data for each date
+              for (var date in allDates) {
+                String dateString =
+                    date.toIso8601String().split('T').first; // Format date
+
+                // Check if there are sales data for this date
+                var checkoutEntry = groupedData[dateString]?.firstWhere(
                   (item) => item['item_name'] == itemName,
-                  orElse: () => {'item_name': itemName, 'total_quantity': 0},
+                  orElse: () => {
+                    'total_quantity': 0
+                  }, // Return a map with total_quantity set to 0
                 );
 
-                double totalQuantity = checkoutEntry['total_quantity'] != null
-                    ? checkoutEntry['total_quantity'].toDouble()
-                    : 0.0;
+                // Use null-aware operator to safely access total_quantity
+                double totalQuantity =
+                    checkoutEntry?['total_quantity']?.toDouble() ?? 0.0;
+
                 double totalValue = price * totalQuantity;
 
-                row.add(totalQuantity);
-                row.add(totalValue);
+                row.add(totalQuantity); // Add quantity for the date
+                row.add(totalValue); // Add total value for the date
 
                 totalSumForRow +=
                     totalValue; // Add to the total sum for this row
-              });
-
+              }
               // Add the total sum for this product to the end of the row
               row.add(totalSumForRow);
               totalJumlahPenjualan +=
@@ -349,7 +351,7 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
               }
             }
 
-// Add the total sum for "Jumlah Penjualan" below the last product row
+            // Add the total sum for "Jumlah Penjualan" below the last product row
             final totalSumCell =
                 sheet.getRangeByIndex(productsList.length + 3, startColumn - 1);
             totalSumCell.setText('Total');
@@ -357,7 +359,7 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
             totalSumCell.cellStyle.hAlign = Excel.HAlignType.center;
             totalSumCell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
 
-// Insert the total sum value in the cell below the "Jumlah Penjualan" header
+            // Insert the total sum value in the cell below the "Jumlah Penjualan" header
             final totalValueCell =
                 sheet.getRangeByIndex(productsList.length + 3, startColumn);
             totalValueCell.setNumber(totalJumlahPenjualan);
@@ -385,7 +387,7 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
 
               print('Excel file saved to: $outputFilePath');
             } else {
-              print('User canceled the save operation.');
+              print('User  canceled the save operation.');
             }
 
             Navigator.of(context).pop();
