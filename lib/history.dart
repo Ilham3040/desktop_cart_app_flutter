@@ -1,3 +1,4 @@
+import 'package:cart_app/exporting_history.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'model/database_helper.dart';
@@ -210,7 +211,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     ),
                     child: Text(
                       selectedDate1 != null
-                          ? 'Mulai: ${selectedDate1!.toLocal().toString().split(' ')[0]}'
+                          ? 'Mulai: ${DateFormat('dd MMMM yyyy').format(selectedDate1!)}'
                           : 'Pilih Range Awal',
                       style:
                           TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
@@ -233,10 +234,35 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     ),
                     child: Text(
                       selectedDate2 != null
-                          ? 'Sampai: ${selectedDate2!.toLocal().toString().split(' ')[0]}'
+                          ? 'Sampai: ${DateFormat('dd MMMM yyyy').format(selectedDate2!)}'
                           : 'Pilih Range Akhir',
                       style:
                           TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ),
+
+                SizedBox(width: 16),
+                ElevatedButton(
+                  style: ButtonStyle(
+                    foregroundColor: WidgetStatePropertyAll(Colors.white),
+                    backgroundColor:
+                        WidgetStatePropertyAll(Colors.blue[900] ?? Colors.blue),
+                    shape: WidgetStatePropertyAll<RoundedRectangleBorder>(
+                      RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                  ),
+                  onPressed: () {
+                    selectingRangeForExportedData(context);
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    child: Text(
+                      "Export Data",
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                     ),
                   ),
                 ),
