@@ -113,7 +113,7 @@ class _MyHomePageState extends State<MyHomePage> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => InventoryPage(),
+        builder: (context) => const InventoryPage(),
       ),
     );
     _initializeDatabaseAndLoadProjects();

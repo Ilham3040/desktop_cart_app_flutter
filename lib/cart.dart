@@ -9,10 +9,10 @@ class CartPage extends ConsumerStatefulWidget {
   const CartPage({super.key});
 
   @override
-  _CartPageState createState() => _CartPageState();
+  CartPageState createState() => CartPageState();
 }
 
-class _CartPageState extends ConsumerState<CartPage> {
+class CartPageState extends ConsumerState<CartPage> {
   List<Map<String, dynamic>> cartItems = [];
   List<Map<String, dynamic>> filteredItems = [];
   double totalAmount = 0.0;
@@ -46,7 +46,6 @@ class _CartPageState extends ConsumerState<CartPage> {
       int stateIndex =
           inventoryState.indexWhere((cartItem) => cartItem['id'] == item['id']);
       if (index != -1) {
-        print(cartItems[index]['stock_quantity']);
         if (cartItems[index]['stock_quantity'] <
             inventoryState[stateIndex]['stock_quantity']) {
           cartItems[index]['stock_quantity'] += 1;
@@ -136,11 +135,14 @@ class _CartPageState extends ConsumerState<CartPage> {
                   totalAmount = 0.0;
                 });
 
-                Navigator.pop(context);
-
-                ScaffoldMessenger.of(context).showSnackBar(
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Checkout berhasil!')),
                 );
+                }
+
+
               },
               child: const Text('Checkout'),
             ),
@@ -152,7 +154,6 @@ class _CartPageState extends ConsumerState<CartPage> {
 
   @override
   Widget build(BuildContext context) {
-    final projectInfo = ref.watch(projectInfoProvider)!;
     final inventoryState = ref.watch(inventoryProvider);
     final itemsToDisplay =
         searchController.text.isEmpty ? inventoryState.items : filteredItems;

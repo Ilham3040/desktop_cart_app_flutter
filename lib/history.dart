@@ -11,10 +11,10 @@ class HistoryPage extends ConsumerStatefulWidget {
   const HistoryPage({super.key});
 
   @override
-  _HistoryPageState createState() => _HistoryPageState();
+  HistoryPageState createState() => HistoryPageState();
 }
 
-class _HistoryPageState extends ConsumerState<HistoryPage> {
+class HistoryPageState extends ConsumerState<HistoryPage> {
   List<Map<String, dynamic>> checkoutHistory = [];
   final dbHelper = DatabaseHelper(); // DatabaseHelper instance
   DateTime? selectedDate1; // First date variable
@@ -72,13 +72,13 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
 
   Future<void> _showDatePickerDialog(
       BuildContext context, int dateField) async {
-    List<DateTime?>? selectedDates = await showDialog<List<DateTime?>>(
+    showDialog(
       context: context,
       builder: (BuildContext context) {
-        List<DateTime?> _tempSelectedDates = [];
+        List<DateTime?> tempSelectedDates = [];
 
         return AlertDialog(
-          title: Text('Select Date'),
+          title: const Text('Select Date'),
           content: SizedBox(
             width: double.maxFinite,
             child: CalendarDatePicker2(
@@ -86,20 +86,20 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 firstDate: DateTime(2000, 1, 1),
                 lastDate: DateTime(2100, 12, 30),
               ),
-              value: _tempSelectedDates,
+              value: tempSelectedDates,
               onValueChanged: (dates) {
-                _tempSelectedDates = dates; // Update temporary selected dates
+                tempSelectedDates = dates; // Update temporary selected dates
               },
             ),
           ),
           actions: [
             TextButton(
               onPressed: () {
-                if (_tempSelectedDates.isNotEmpty) {
+                if (tempSelectedDates.isNotEmpty) {
                   setState(() {
                     if (dateField == 1) {
                       prevDate1 = selectedDate1;
-                      selectedDate1 = _tempSelectedDates.last;
+                      selectedDate1 = tempSelectedDates.last;
                       bool goodRange = checkDateRange(context);
                       if (!goodRange) {
                         selectedDate1 = prevDate1;
@@ -107,7 +107,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                       _loadHistoryByRangeDate();
                     } else if (dateField == 2) {
                       prevDate2 = selectedDate2;
-                      selectedDate2 = _tempSelectedDates.last;
+                      selectedDate2 = tempSelectedDates.last;
                       bool goodRange = checkDateRange(context);
                       if (!goodRange) {
                         selectedDate2 = prevDate2;
@@ -116,15 +116,15 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     }
                   });
                 }
-                Navigator.of(context).pop(_tempSelectedDates);
+                Navigator.of(context).pop(tempSelectedDates);
               },
-              child: Text('OK'),
+              child: const Text('OK'),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: Text('Cancel'),
+              child: const Text('Cancel'),
             ),
           ],
         );
@@ -144,16 +144,20 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
     List<Map<String, dynamic>> checkoutItems =
         await dbHelper.getCheckoutItemsByHistory(checkoutHistoryId);
 
+    // Check if the widget is still mounted before proceeding
+    if (!mounted) return; // Check if the state is mounted
+
+    // Check if the context is still valid before showing the dialog
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text("Detail Barang Checkout"),
           content: SizedBox(
             width: double.maxFinite,
             child: ListView.builder(
               itemCount: checkoutItems.length,
-              itemBuilder: (context, index) {
+              itemBuilder: (BuildContext itemContext, int index) {
                 final item = checkoutItems[index];
                 return Card(
                   margin: const EdgeInsets.symmetric(vertical: 8),
@@ -169,7 +173,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text("Tutup"),
             ),
           ],
@@ -193,7 +197,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
       body: Column(
         children: [
           Padding(
-            padding: EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -203,7 +207,8 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     _showDatePickerDialog(context, 1);
                   }, // Assign date to selectedDate1
                   child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       border:
                           Border.all(color: Colors.blue[900] ?? Colors.blue),
@@ -213,12 +218,12 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                       selectedDate1 != null
                           ? 'Mulai: ${DateFormat('dd MMMM yyyy').format(selectedDate1!)}'
                           : 'Pilih Range Awal',
-                      style:
-                          TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w500),
                     ),
                   ),
                 ),
-                SizedBox(width: 16), // Space between the two containers
+                const SizedBox(width: 16), // Space between the two containers
 
                 // Second date picker
                 GestureDetector(
@@ -226,7 +231,8 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     _showDatePickerDialog(context, 2);
                   }, // Assign date to selectedDate2
                   child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       border:
                           Border.all(color: Colors.blue[900] ?? Colors.blue),
@@ -236,16 +242,16 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                       selectedDate2 != null
                           ? 'Sampai: ${DateFormat('dd MMMM yyyy').format(selectedDate2!)}'
                           : 'Pilih Range Akhir',
-                      style:
-                          TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w500),
                     ),
                   ),
                 ),
 
-                SizedBox(width: 16),
+                const SizedBox(width: 16),
                 ElevatedButton(
                   style: ButtonStyle(
-                    foregroundColor: WidgetStatePropertyAll(Colors.white),
+                    foregroundColor: const WidgetStatePropertyAll(Colors.white),
                     backgroundColor:
                         WidgetStatePropertyAll(Colors.blue[900] ?? Colors.blue),
                     shape: WidgetStatePropertyAll<RoundedRectangleBorder>(

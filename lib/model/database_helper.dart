@@ -28,7 +28,6 @@ class DatabaseHelper {
 
   Future<Database> _initDatabase() async {
     String path = join(await getDatabasesPath(), 'cartapp_data.db');
-    print('Database path: $path');
 
     return await openDatabase(
       path,
@@ -393,7 +392,6 @@ class DatabaseHelper {
 
   Future<void> processCheckout(int projectId,
       List<Map<String, dynamic>> cartItems, double totalAmount) async {
-    final db = await database;
 
     // Insert a new checkout history record
     int checkoutHistoryId = await insertCheckoutHistory(projectId, totalAmount);

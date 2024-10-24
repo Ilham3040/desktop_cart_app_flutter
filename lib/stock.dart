@@ -11,10 +11,10 @@ class StockRecordsPage extends ConsumerStatefulWidget {
   const StockRecordsPage({super.key});
 
   @override
-  _StockRecordsPageState createState() => _StockRecordsPageState();
+  StockRecordsPageState createState() => StockRecordsPageState();
 }
 
-class _StockRecordsPageState extends ConsumerState<StockRecordsPage> {
+class StockRecordsPageState extends ConsumerState<StockRecordsPage> {
   List<Map<String, dynamic>> stockRecords = [];
   final dbHelper = DatabaseHelper(); // DatabaseHelper instance
   DateTime? selectedDate1; // First date variable
@@ -49,13 +49,13 @@ class _StockRecordsPageState extends ConsumerState<StockRecordsPage> {
   // Function to show date picker and assign the selected date to a variable
   Future<void> _showDatePickerDialog(
       BuildContext context, int dateField) async {
-    List<DateTime?>? selectedDates = await showDialog<List<DateTime?>>(
+    showDialog(
       context: context,
       builder: (BuildContext context) {
-        List<DateTime?> _tempSelectedDates = [];
+        List<DateTime?> tempSelectedDates = [];
 
         return AlertDialog(
-          title: Text('Select Date'),
+          title: const Text('Select Date'),
           content: SizedBox(
             width: double.maxFinite,
             child: CalendarDatePicker2(
@@ -63,20 +63,20 @@ class _StockRecordsPageState extends ConsumerState<StockRecordsPage> {
                 firstDate: DateTime(2000, 1, 1),
                 lastDate: DateTime(2100, 12, 30),
               ),
-              value: _tempSelectedDates,
+              value: tempSelectedDates,
               onValueChanged: (dates) {
-                _tempSelectedDates = dates; // Update temporary selected dates
+                tempSelectedDates = dates; // Update temporary selected dates
               },
             ),
           ),
           actions: [
             TextButton(
               onPressed: () {
-                if (_tempSelectedDates.isNotEmpty) {
+                if (tempSelectedDates.isNotEmpty) {
                   setState(() {
                     if (dateField == 1) {
                       prevDate1 = selectedDate1;
-                      selectedDate1 = _tempSelectedDates.last;
+                      selectedDate1 = tempSelectedDates.last;
                       bool goodRange = checkDateRange(context);
                       if (!goodRange) {
                         selectedDate1 = prevDate1;
@@ -84,7 +84,7 @@ class _StockRecordsPageState extends ConsumerState<StockRecordsPage> {
                       _loadStockByRangeDate();
                     } else if (dateField == 2) {
                       prevDate2 = selectedDate2;
-                      selectedDate2 = _tempSelectedDates.last;
+                      selectedDate2 = tempSelectedDates.last;
                       bool goodRange = checkDateRange(context);
                       if (!goodRange) {
                         selectedDate2 = prevDate2;
@@ -93,15 +93,15 @@ class _StockRecordsPageState extends ConsumerState<StockRecordsPage> {
                     }
                   });
                 }
-                Navigator.of(context).pop(_tempSelectedDates);
+                Navigator.of(context).pop(tempSelectedDates);
               },
-              child: Text('OK'),
+              child: const Text('OK'),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: Text('Cancel'),
+              child: const Text('Cancel'),
             ),
           ],
         );
@@ -198,7 +198,7 @@ class _StockRecordsPageState extends ConsumerState<StockRecordsPage> {
       body: Column(
         children: [
           Padding(
-            padding: EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -208,7 +208,7 @@ class _StockRecordsPageState extends ConsumerState<StockRecordsPage> {
                     _showDatePickerDialog(context, 1);
                   }, // Assign date to selectedDate1
                   child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       border:
                           Border.all(color: Colors.blue[900] ?? Colors.blue),
@@ -219,11 +219,11 @@ class _StockRecordsPageState extends ConsumerState<StockRecordsPage> {
                           ? 'Mulai: ${selectedDate1!.toLocal().toString().split(' ')[0]}'
                           : 'Pilih Range Awal',
                       style:
-                          TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                          const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                     ),
                   ),
                 ),
-                SizedBox(width: 16), // Space between the two containers
+                const SizedBox(width: 16), // Space between the two containers
 
                 // Second date picker
                 GestureDetector(
@@ -231,7 +231,7 @@ class _StockRecordsPageState extends ConsumerState<StockRecordsPage> {
                     _showDatePickerDialog(context, 2);
                   }, // Assign date to selectedDate2
                   child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       border:
                           Border.all(color: Colors.blue[900] ?? Colors.blue),
@@ -242,14 +242,14 @@ class _StockRecordsPageState extends ConsumerState<StockRecordsPage> {
                           ? 'Sampai: ${selectedDate2!.toLocal().toString().split(' ')[0]}'
                           : 'Pilih Range Akhir',
                       style:
-                          TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                          const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                     ),
                   ),
                 ),
-                SizedBox(width: 16),
+                const SizedBox(width: 16),
                 ElevatedButton(
                   style: ButtonStyle(
-                    foregroundColor: WidgetStatePropertyAll(Colors.white),
+                    foregroundColor: const WidgetStatePropertyAll(Colors.white),
                     backgroundColor:
                         WidgetStatePropertyAll(Colors.blue[900] ?? Colors.blue),
                     shape: WidgetStatePropertyAll<RoundedRectangleBorder>(

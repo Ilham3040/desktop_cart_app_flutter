@@ -5,20 +5,21 @@ import 'package:intl/intl.dart'; // Import for date formatting
 import 'providers/projectinfo_provider.dart';
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'dart:io';
-import 'package:syncfusion_flutter_xlsio/xlsio.dart' as Excel;
+import 'package:syncfusion_flutter_xlsio/xlsio.dart' as excel;
 import 'package:file_picker/file_picker.dart';
 
-class Exporting_History extends ConsumerStatefulWidget {
+class ExportingHistory extends ConsumerStatefulWidget {
   final DateTime? selectedDate1Export;
   final DateTime? selectedDate2Export;
 
-  Exporting_History({this.selectedDate1Export, this.selectedDate2Export});
+  const ExportingHistory(
+      {super.key, this.selectedDate1Export, this.selectedDate2Export});
 
   @override
-  _Exporting_HistoryState createState() => _Exporting_HistoryState();
+  ExportingHistoryState createState() => ExportingHistoryState();
 }
 
-class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
+class ExportingHistoryState extends ConsumerState<ExportingHistory> {
   final DatabaseHelper dbHelper = DatabaseHelper();
   DateTime? selectedDate1Export;
   DateTime? selectedDate2Export;
@@ -49,13 +50,13 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
 
   Future<void> _showDatePickerDialog(
       BuildContext context, int datePickerNumber) async {
-    List<DateTime?>? selectedDates = await showDialog<List<DateTime?>>(
+    showDialog<List<DateTime?>>(
       context: context,
       builder: (BuildContext context) {
-        List<DateTime?> _tempSelectedDates = [];
+        List<DateTime?> tempSelectedDates = [];
 
         return AlertDialog(
-          title: Text('Pilih Tanggal'),
+          title: const Text('Pilih Tanggal'),
           content: SizedBox(
             width: double.maxFinite,
             child: CalendarDatePicker2(
@@ -63,27 +64,27 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
                 firstDate: DateTime(2000, 1, 1),
                 lastDate: DateTime(2100, 12, 30),
               ),
-              value: _tempSelectedDates,
+              value: tempSelectedDates,
               onValueChanged: (dates) {
-                _tempSelectedDates = dates; // Update temporary selected dates
+                tempSelectedDates = dates; // Update temporary selected dates
               },
             ),
           ),
           actions: [
             TextButton(
               onPressed: () {
-                if (_tempSelectedDates.isNotEmpty) {
+                if (tempSelectedDates.isNotEmpty) {
                   setState(() {
                     if (datePickerNumber == 1) {
                       DateTime? prevDate1 = selectedDate1Export;
-                      selectedDate1Export = _tempSelectedDates.last;
+                      selectedDate1Export = tempSelectedDates.last;
                       if (!checkDateRange(context)) {
                         selectedDate1Export =
                             prevDate1; // Revert to previous date
                       }
                     } else if (datePickerNumber == 2) {
                       DateTime? prevDate2 = selectedDate2Export;
-                      selectedDate2Export = _tempSelectedDates.last;
+                      selectedDate2Export = tempSelectedDates.last;
                       if (!checkDateRange(context)) {
                         selectedDate2Export =
                             prevDate2; // Revert to previous date
@@ -92,15 +93,15 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
                     // _loadHistoryByRangeDate(); // Call this method if necessary
                   });
                 }
-                Navigator.of(context).pop(_tempSelectedDates);
+                Navigator.of(context).pop(tempSelectedDates);
               },
-              child: Text('OK'),
+              child: const Text('OK'),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: Text('Batal'),
+              child: const Text('Batal'),
             ),
           ],
         );
@@ -120,7 +121,7 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
         : 'Pilih Range Akhir';
 
     return AlertDialog(
-      title: Text('Pilih Range Data Export'),
+      title: const Text('Pilih Range Data Export'),
       content: Padding(
         padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
         child: Column(
@@ -134,7 +135,8 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
                     _showDatePickerDialog(context, 1);
                   },
                   child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                     decoration: BoxDecoration(
                       border:
                           Border.all(color: Colors.blue[900] ?? Colors.blue),
@@ -142,18 +144,19 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
                     ),
                     child: Text(
                       'Mulai: $formattedDate1',
-                      style:
-                          TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w500),
                     ),
                   ),
                 ),
-                SizedBox(width: 16),
+                const SizedBox(width: 16),
                 GestureDetector(
                   onTap: () {
                     _showDatePickerDialog(context, 2);
                   },
                   child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                     decoration: BoxDecoration(
                       border:
                           Border.all(color: Colors.blue[900] ?? Colors.blue),
@@ -161,25 +164,25 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
                     ),
                     child: Text(
                       'Sampai: $formattedDate2',
-                      style:
-                          TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w500),
                     ),
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             if (errorMessage != null)
               Text(
                 errorMessage!,
-                style: TextStyle(color: Colors.red),
+                style: const TextStyle(color: Colors.red),
               ),
           ],
         ),
       ),
       actions: [
         TextButton(
-          child: Text('Konfirmasi'),
+          child: const Text('Konfirmasi'),
           onPressed: () async {
             final projectId = ref.read(projectInfoProvider)!.id;
 
@@ -188,7 +191,7 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
             DateTime currentDate = selectedDate1Export!;
             while (!currentDate.isAfter(selectedDate2Export!)) {
               allDates.add(currentDate);
-              currentDate = currentDate.add(Duration(days: 1));
+              currentDate = currentDate.add(const Duration(days: 1));
             }
 
             // Get checkout data
@@ -199,8 +202,8 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
             final List<Map<String, dynamic>> productsList =
                 await dbHelper.getInventoryByProject(projectId);
 
-            final Excel.Workbook workbook = Excel.Workbook();
-            final Excel.Worksheet sheet =
+            final excel.Workbook workbook = excel.Workbook();
+            final excel.Worksheet sheet =
                 workbook.worksheets.addWithName('Checkout Data');
 
             List<String> staticHeaders = ['No', 'Nama Barang', 'Harga Barang'];
@@ -216,11 +219,14 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
               groupedData[checkoutDate]!.add(entry);
             }
 
-            // Create dynamic headers based on all dates
-            for (var date in allDates) {
+// Assuming allDates is a list of dates
+            int dateCount = allDates.length; // Get the number of dates
+
+            for (int i = 0; i < dateCount; i++) {
               dynamicHeaders.add('Jumlah Barang');
               dynamicHeaders.add('Total Harga');
             }
+
             dynamicHeaders.add('Jumlah Penjualan'); // Add total sales column
 
             // Merge static headers
@@ -229,9 +235,9 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
               cell.merge();
               cell.setText(staticHeaders[i]);
               cell.cellStyle.bold = true;
-              cell.cellStyle.hAlign = Excel.HAlignType.center;
-              cell.cellStyle.vAlign = Excel.VAlignType.center;
-              cell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
+              cell.cellStyle.hAlign = excel.HAlignType.center;
+              cell.cellStyle.vAlign = excel.VAlignType.center;
+              cell.cellStyle.borders.all.lineStyle = excel.LineStyle.thin;
             }
 
             // Add dynamic headers with dates merged for "Jumlah Barang" and "Total Harga"
@@ -245,22 +251,22 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
               dateCell.merge();
               dateCell.setText(dateString);
               dateCell.cellStyle.bold = true;
-              dateCell.cellStyle.hAlign = Excel.HAlignType.center;
-              dateCell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
+              dateCell.cellStyle.hAlign = excel.HAlignType.center;
+              dateCell.cellStyle.borders.all.lineStyle = excel.LineStyle.thin;
 
               final jumlahBarangCell = sheet.getRangeByIndex(2, startColumn);
               jumlahBarangCell.setText('Jumlah Barang');
               jumlahBarangCell.cellStyle.bold = true;
-              jumlahBarangCell.cellStyle.hAlign = Excel.HAlignType.center;
+              jumlahBarangCell.cellStyle.hAlign = excel.HAlignType.center;
               jumlahBarangCell.cellStyle.borders.all.lineStyle =
-                  Excel.LineStyle.thin;
+                  excel.LineStyle.thin;
 
               final totalHargaCell = sheet.getRangeByIndex(2, startColumn + 1);
               totalHargaCell.setText('Total Harga');
               totalHargaCell.cellStyle.bold = true;
-              totalHargaCell.cellStyle.hAlign = Excel.HAlignType.center;
+              totalHargaCell.cellStyle.hAlign = excel.HAlignType.center;
               totalHargaCell.cellStyle.borders.all.lineStyle =
-                  Excel.LineStyle.thin;
+                  excel.LineStyle.thin;
 
               startColumn +=
                   2; // Move to the next set of columns for the next date
@@ -270,9 +276,9 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
             final sumHeaderCell = sheet.getRangeByIndex(2, startColumn);
             sumHeaderCell.setText('Jumlah Penjualan');
             sumHeaderCell.cellStyle.bold = true;
-            sumHeaderCell.cellStyle.hAlign = Excel.HAlignType.center;
+            sumHeaderCell.cellStyle.hAlign = excel.HAlignType.center;
             sumHeaderCell.cellStyle.borders.all.lineStyle =
-                Excel.LineStyle.thin;
+                excel.LineStyle.thin;
 
             // Adding product rows (starting from row 3)
             // Adding product rows (starting from row 3)
@@ -291,12 +297,8 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
                 price, // Price as double
               ];
 
-              double totalSumForRow = 0.0; // Initialize total sum for this row
+              double totalSumForRow = 0.0;
 
-              // Fill in dynamic data for each date
-              // Fill in dynamic data for each date
-              // Fill in dynamic data for each date
-// Fill in dynamic data for each date
               for (var date in allDates) {
                 String dateString =
                     date.toIso8601String().split('T').first; // Format date
@@ -346,8 +348,8 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
                   cell.setText(value.toString()); // For "Nama Barang"
                 }
 
-                cell.cellStyle.hAlign = Excel.HAlignType.center;
-                cell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
+                cell.cellStyle.hAlign = excel.HAlignType.center;
+                cell.cellStyle.borders.all.lineStyle = excel.LineStyle.thin;
               }
             }
 
@@ -356,20 +358,20 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
                 sheet.getRangeByIndex(productsList.length + 3, startColumn - 1);
             totalSumCell.setText('Total');
             totalSumCell.cellStyle.bold = true;
-            totalSumCell.cellStyle.hAlign = Excel.HAlignType.center;
-            totalSumCell.cellStyle.borders.all.lineStyle = Excel.LineStyle.thin;
+            totalSumCell.cellStyle.hAlign = excel.HAlignType.center;
+            totalSumCell.cellStyle.borders.all.lineStyle = excel.LineStyle.thin;
 
             // Insert the total sum value in the cell below the "Jumlah Penjualan" header
             final totalValueCell =
                 sheet.getRangeByIndex(productsList.length + 3, startColumn);
             totalValueCell.setNumber(totalJumlahPenjualan);
-            totalValueCell.cellStyle.hAlign = Excel.HAlignType.center;
+            totalValueCell.cellStyle.hAlign = excel.HAlignType.center;
             totalValueCell.cellStyle.borders.all.lineStyle =
-                Excel.LineStyle.thin;
+                excel.LineStyle.thin;
 
-            // Saving the Excel file
+            // Saving the excel file
             String? outputFilePath = await FilePicker.platform.saveFile(
-              dialogTitle: 'Save Excel File',
+              dialogTitle: 'Save excel File',
               fileName: 'checkout_data.xlsx',
               type: FileType.custom,
               allowedExtensions: ['xlsx'],
@@ -384,17 +386,13 @@ class _Exporting_HistoryState extends ConsumerState<Exporting_History> {
               File(outputFilePath)
                 ..createSync(recursive: true)
                 ..writeAsBytesSync(bytes);
-
-              print('Excel file saved to: $outputFilePath');
-            } else {
-              print('User  canceled the save operation.');
             }
 
-            Navigator.of(context).pop();
+            if (context.mounted) Navigator.of(context).pop();
           },
         ),
         TextButton(
-          child: Text('Batal'),
+          child: const Text('Batal'),
           onPressed: () {
             Navigator.of(context).pop();
           },
@@ -408,7 +406,8 @@ void selectingRangeForExportedData(BuildContext context) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
-      return Exporting_History();
+      // ignore: prefer_const_constructors
+      return ExportingHistory();
     },
   );
 }

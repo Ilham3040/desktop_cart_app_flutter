@@ -11,16 +11,15 @@ import 'package:excel/excel.dart';
 import 'dart:typed_data';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
-import 'package:excel/excel.dart';
 
 class InventoryPage extends ConsumerStatefulWidget {
   const InventoryPage({super.key});
 
   @override
-  _InventoryPageState createState() => _InventoryPageState();
+  InventoryPageState createState() => InventoryPageState();
 }
 
-class _InventoryPageState extends ConsumerState<InventoryPage> {
+class InventoryPageState extends ConsumerState<InventoryPage> {
   String selectedProductName = "Nama Produk: Pilih produk";
   String selectedProductPrice = "Harga: -";
   String selectedProductStock = "Jumlah Barang: -";
@@ -148,7 +147,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Data Tabel Excel'), // "Excel Table Data" in Indonesian
+          title: const Text(
+              'Data Tabel Excel'), // "Excel Table Data" in Indonesian
           content: SizedBox(
             width: double.maxFinite, // Allow table to take max width
             child: SingleChildScrollView(
@@ -212,13 +212,11 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                   // // Call the function to insert or update products from the table
                   await insertOrUpdateProductsFromTable(mappedData);
                   await ref.read(inventoryProvider.notifier).fetchInventory();
-                  Navigator.pop(context);
+                  if (context.mounted) Navigator.of(context).pop();
 
                   // Provide feedback or perform other actions after confirmation
-                  print('Products inserted or updated successfully');
                 } else {
                   // Handle the case where _tableData is empty
-                  print('No data to insert or update');
                   Navigator.pop(context);
                 }
               },
@@ -245,25 +243,23 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
         // Read the Excel file
         var excel = Excel.decodeBytes(bytes);
 
-        // Print the filename
-        print('File terpilih: $filePath'); // "Selected file" in Indonesian
+        // Check if the widget is still mounted before showing the dialog
+        if (!context.mounted) return; // Ensure the context is valid
 
         // Show the sheet selection dialog
         showSheetSelectionDialog(context, excel.tables.keys.toList(), excel);
       } else {
         // Print a message if the file format is incorrect
-        print(
-            'Harap pilih format .xlsx'); // "Please input .xlsx format" in Indonesian
+        // "Please input .xlsx format" in Indonesian
       }
     } else {
       // Print a message if no file was selected
-      print('Tidak ada file yang dipilih'); // "No file selected" in Indonesian
+      // "No file selected" in Indonesian
     }
   }
 
   void showSheetSelectionDialog(
       BuildContext context, List<String> sheetNames, Excel excel) {
-    print('Hello World');
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -280,8 +276,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                   title: Text(sheetNames[index]),
                   onTap: () {
                     // Handle the sheet selection
-                    print(
-                        'Lembar terpilih: ${sheetNames[index]}'); // "Selected sheet" in Indonesian
+                    // "Selected sheet" in Indonesian
                     Navigator.of(context).pop(); // Close the dialog
 
                     // Load the selected sheet data
@@ -374,8 +369,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                 }
 
                 ref.read(inventoryProvider.notifier).fetchInventory();
-                Navigator.of(context).pop();
-                Navigator.of(context).pop();
+                if (context.mounted) Navigator.of(context).pop();
               },
               child: const Text('Tambahkan'),
             ),
@@ -516,7 +510,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                   selectedProductStock =
                       "Jumlah Barang: ${productStockController.text}";
 
-                  Navigator.of(context).pop();
+                  if (context.mounted) Navigator.of(context).pop();
                 }
               },
               child: const Text('Simpan'),
@@ -632,13 +626,15 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                   await deleteProject(projectInfo.id);
 
                   // Close the detail dialog
-                  Navigator.of(context).pop();
+                  if (context.mounted) Navigator.of(context).pop();
 
                   // Navigate back to main.dart after deletion
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    '/', // Assuming the main page route is "/"
-                    (Route<dynamic> route) => false,
-                  );
+                  if (context.mounted) {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      '/', // Assuming the main page route is "/"
+                      (Route<dynamic> route) => false,
+                    );
+                  }
                 }
               },
               child: const Text("Hapus"),
@@ -762,7 +758,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => CartPage(),
+                          builder: (context) => const CartPage(),
                         ),
                       );
                     },
@@ -778,7 +774,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => HistoryPage(),
+                          builder: (context) => const HistoryPage(),
                         ),
                       );
                     },
@@ -805,7 +801,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => StockRecordsPage(),
+                          builder: (context) => const StockRecordsPage(),
                         ),
                       );
                     },
